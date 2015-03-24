@@ -8,12 +8,12 @@ Install nodejs and vertx in your desktop or server.
 - For vertx, refer to http://vertx.io/install.html
 
 Install gulp related tasks by using npm.
-/> npm install --save-dev gulp gulp-zip gulp-uglify gulp-bower del vinyl-paths
-
+- /> npm install --save-dev gulp gulp-zip gulp-uglify gulp-bower del vinyl-paths
 
 Run 'gulp' to build a distribution.
-/> gulp
+- /> gulp
+
 'fullbox~mod-push-interface~1.0.0.zip' file will be created in 'dist' directory.
 
 Run the following command to start up push-interface module.
-dist/> vertx runzip fullbox~mod-push-interface~1.0.0.zip -conf conf.json
+- dist/> vertx runzip fullbox~mod-push-interface~1.0.0.zip -conf conf.json
