@@ -1,6 +1,6 @@
 # Push Interface Vert.x Module
 
-* How to build push-interface project
+## How to build push-interface project
 
 The following procedure needs to be performed for deploying push-interface module.
 Install nodejs and vertx in your desktop or server.
