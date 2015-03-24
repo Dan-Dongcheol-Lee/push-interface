@@ -1,4 +1,4 @@
-# Push Interface Vert.x Module
+# Push Interface Vert.x Module (ongoing)
 
 ## How to build push-interface project
 
