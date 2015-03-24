@@ -1,0 +1,24 @@
+{
+  "author": "Dan Dongcheol Lee",
+  "name": "push-interface",
+  "description": "Push Interface",
+  "version": "0.1.0",
+  "homepage": "",
+  "license": "Apache 2.0",
+  "keywords": [
+    "vertx",
+    "websocket",
+    "push",
+    "push-interface"
+  ],
+  "ignore": [
+    "test",
+    "node_modules",
+    "bower_components"
+  ],
+  "devDependencies": {},
+  "dependencies": {
+    "moment": "~2.9.0",
+    "lodash": "~3.5.0"
+  }
+}

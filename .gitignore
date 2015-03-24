@@ -1,0 +1,17 @@
+.gradle
+.idea
+.classpath
+.project
+.settings
+bin
+build
+target
+out
+node_modules
+bower_components
+*.iml
+*.ipr
+*.iws
+*.class
+*.log
+mods

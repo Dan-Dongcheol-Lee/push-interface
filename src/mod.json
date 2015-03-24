@@ -1,0 +1,18 @@
+{
+
+  "main":"app_starter.js",
+
+  "description":"Push Interface Module",
+  "licenses": ["The Apache Software License Version 2.0"],
+  "author": "Dan-Dongcheol-Lee",
+
+  // Optional fields
+  "developers": ["Dan-Dongcheol-Lee"],
+  "keywords": ["vertx", "push", "websocket", "push-inteface"],
+  "homepage": "",
+
+  "auto-redeploy": true,
+
+  "includes":"com.bloidonia~mod-jdbc-persistor~2.1.3"
+
+}

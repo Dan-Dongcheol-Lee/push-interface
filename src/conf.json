@@ -1,0 +1,25 @@
+// Config file for modules
+{
+  "appConfig": {
+    "instances": 2,
+    "port": 7220
+  },
+  "appMonitor": {
+    "instances": 2,
+    "port": 7230
+  },
+  "dataPersistor": {
+    "instances": 2,
+    "address"  : "push_log.persistor",
+    "driver"   : "org.hsqldb.jdbc.JDBCDriver",
+    "url"      : "jdbc:hsqldb:file:push-log-db",
+    "username" : "sa",
+    "password" : "",
+    "pmdKnownBroken" : "no",
+    "minpool"  : 5,
+    "maxpool"  : 20,
+    "acquire"  : 5,
+    "batchtimeout"       : 5000,
+    "transactiontimeout" : 10000
+  }
+}
