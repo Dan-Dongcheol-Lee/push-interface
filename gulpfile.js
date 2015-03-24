@@ -5,16 +5,16 @@ var bower = require('gulp-bower');
 var vinylPaths = require('vinyl-paths');
 var del = require('del');
 
-var groupId = 'com.fletaplus';
-var moduleId = 'mod-websocket';
+var groupId = 'fullbox';
+var moduleId = 'mod-push-interface';
 var version = '1.0.0';
 
 gulp.task('bower', function() {
   return bower('./bower_components')
     .on('end', function() {
-        gulp.src(['src/lib/*/*', '!src/lib/*.jar'], {dot: true})
+        gulp.src(['src/lib/**/*', '!src/lib/*.jar'], {dot: true})
             .pipe(vinylPaths(del));
-        gulp.src('bower_components/**/*.min.js')
+        gulp.src(['bower_components/**/*.min.js'])
             .pipe(gulp.dest('src/lib/'));
     });
 });
@@ -29,8 +29,8 @@ gulp.task('compress', function() {
     .pipe(gulp.dest('dist'));
 });
 
-gulp.task('default', ['bower', 'clean', 'compress'], function () {
-    return gulp.src('src/**/*')
+gulp.task('default', ['clean', 'compress'], function () {
+    return gulp.src(['src/**/*'])
         .pipe(zip(groupId + '~' + moduleId + '~' + version + '.zip'))
         .pipe(gulp.dest('dist'));
 });

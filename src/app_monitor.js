@@ -1,4 +1,4 @@
-var moment = require('lib/moment.min.js');
+var moment = require('lib/moment/min/moment.min.js');
 var vertx = require('vertx');
 var console = require('vertx/console');
 var container = require('vertx/container');

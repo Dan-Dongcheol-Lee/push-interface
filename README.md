@@ -10,10 +10,12 @@ Install nodejs and vertx in your desktop or server.
 Install gulp related tasks by using npm.
 - /> npm install --save-dev gulp gulp-zip gulp-uglify gulp-bower del vinyl-paths
 
-Run 'gulp' to build a distribution.
+Run 'gulp bower', 'gulp' to build a module distribution.
+- /> gulp bower
 - /> gulp
 
 'fullbox~mod-push-interface~1.0.0.zip' file will be created in 'dist' directory.
 
-Run the following command to start up push-interface module.
+Run the following command to start up push-interface module
+with conf.json in 'src' directory which can be used for the module configuration.
 - dist/> vertx runzip fullbox~mod-push-interface~1.0.0.zip -conf conf.json

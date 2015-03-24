@@ -6,16 +6,29 @@ var eventBus = vertx.eventBus;
 
 var routeMatcher = new vertx.RouteMatcher()
     // get push interfaces
-    .get('/animals/dogs', function(req) {
-        req.response.end('You requested dogs');
+    .get('/config/push-interfaces/:pushId', function(req) {
+        var pushId = req.params().get("pushId");
+        console.log('pushId: ' + pushId);
+        req.response.end('Return pushId:' + pushId);
     })
     // post push interface
-    .get('/animals/cats', function(req) {
-        req.response.end('You requested cats');
+    .post('/config/push-interfaces', function(req) {
+        var pushId = req.params().get("pushId");
+        console.log('pushId: ' + pushId);
+        req.response.end('Return pushId:' + pushId);
     })
     // get custom event handlers
-
+    .get('/config/event-handlers/:handlerId', function(req) {
+        var handlerId = req.params().get("handlerId");
+        console.log('handlerId: ' + handlerId);
+        req.response.end('Return handlerId:' + handlerId);
+    })
     // post custom event handler
+    .post('/config/event-handlers', function(req) {
+        var handlerId = req.params().get("handlerId");
+        console.log('handlerId: ' + handlerId);
+        req.response.end('Return handlerId:' + handlerId);
+    })
     .optionsWithRegEx('\\/([^\\/]+)', function(req) {
         req.response
             .putHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
