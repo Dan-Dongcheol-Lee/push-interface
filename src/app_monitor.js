@@ -66,7 +66,7 @@ var routeMatcher = new vertx.RouteMatcher()
     });
 
 var startMonitorHeap = function() {
-        vertx.setPeriodic(1000, function(timerID) {
+        vertx.setPeriodic(10000, function(timerID) {
             var runtime = java.lang.Runtime.getRuntime();
             var heapStatus = {
                 cores: runtime.availableProcessors(),
@@ -81,7 +81,7 @@ var startMonitorHeap = function() {
     };
 
 var startMonitorSentMessage = function() {
-        vertx.setPeriodic(1000, function(timerID) {
+        vertx.setPeriodic(10000, function(timerID) {
             var formattedLastSentTime = moment(lastSentTime).format('YYYY-MM-DD HH:mm:ss');
             var queryString = "SELECT status, "
                             + " TO_CHAR(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') as sent_time, "
