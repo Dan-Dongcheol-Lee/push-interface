@@ -3,18 +3,38 @@ var console = require('vertx/console');
 var container = require('vertx/container');
 var http = require('vertx/http');
 var eventBus = vertx.eventBus;
+var PUSH_LOG_PERSISTOR = 'push_log.persistor';
 
-var toJs = function(jsObject) {
-    return JSON.parse(jsObject);
+var toJson = function(jsObject) {
+    return JSON.stringify(jsObject);
+};
+
+var failedResult = function(msg) {
+    var message = msg;
+    if (typeof msg === 'string') {
+        message = JSON.parse(msg);
+    }
+    return message.status && message.status === 'failed' ? true : false;
 };
 
 var failure = function(msg) {
-    return {status: 'failed', message: msg};
-}
+    return toJson({status: 'failed', message: msg});
+};
 
 var success = function(msg, result) {
-    return {status: 'ok', message: msg, result: result};
-}
+    return toJson({status: 'ok', message: msg, result: result});
+};
+
+var toJs = function(req, buffer) {
+    console.log('Received ' + buffer.length() + ' bytes');
+    try {
+        return JSON.parse(buffer.toString());
+    } catch (ex) {
+        var failed = failure(ex.message);
+        req.response.statusCode(400).end(failed);
+        return failed;
+    }
+};
 
 var validateRequired = function(req, property, message) {
     if (!property) {
@@ -27,53 +47,95 @@ var validateRequired = function(req, property, message) {
 var routeMatcher = new vertx.RouteMatcher()
     // get push interfaces
     .get('/config/push-interfaces', function(req) {
-        var pushInterfaces = vertx.getMap('config.push-interfaces').values();
-        console.log('push-interfaces: ' + pushInterfaces);
-        req.response.end(pushInterfaces);
+        var queryString = 'SELECT * '
+                        + ' FROM push_interface '
+                        + ' ORDER BY created_date desc';
+        var query = {action: 'select', stmt: queryString, values: [[]]};
+        eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
+            var resultJson = toJson(result);
+            console.log('Responded to config/push-interfaces: ' + resultJson);
+            req.response.end(resultJson);
+        });
     })
     .get('/config/push-interfaces/:pushId', function(req) {
         var pushId = req.params().get("pushId");
-        var pushInterface = vertx.getMap('config.push-interfaces').get(pushId);
-        console.log('pushId: ' + pushId + ', pushInterface: ' + pushInterface);
-        req.response.end(pushInterface);
+        var queryString = 'SELECT * '
+                        + ' FROM push_interface '
+                        + ' WHERE push_id = ? ';
+        var query = {action: 'select', stmt: queryString, values: [[pushId]]};
+        eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
+            var resultJson = toJson(result);
+            console.log('Responded to config/push-interfaces/' + pushId + ': ' + resultJson);
+            req.response.end(resultJson);
+        });
     })
     // post push interface
     .post('/config/push-interfaces', function(req) {
         req.dataHandler(function(buffer) {
-            console.log('I received ' + buffer.length() + ' bytes');
-            var reqJson = toJs(buffer.toString());
-            if (!validateRequired(req, reqJson.pushId, 'pushId is required')) {
+            var reqJs = toJs(req, buffer);
+            if (failedResult(reqJs)) {
                 return;
             }
-            console.log('pushId: ' + buffer.toString());
-            vertx.getMap('config.push-interfaces').put(reqJson.pushId, reqJson);
-            req.response.end(success('Added a push interface successfully', reqJson));
+            if (!validateRequired(req, reqJs.pushId, 'pushId is required')) {
+                return;
+            }
+            var insertString = 'INSERT INTO push_interface (push_id, created_date, creator, '
+                        + 'port, inbound_addr, outbound_addr, handler, logging, msg_filter, desc) '
+                        + 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+            var query = {action: 'insert', stmt: insertString, values: [[
+                reqJs.pushId, reqJs.createdDate, reqJs.creator,
+                reqJs.port, reqJs.inboundAddr, reqJs.outboundAddr, reqJs.handler,
+                reqJs.logging, reqJs.msgFilter, reqJs.desc
+            ]]};
+            eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
+                req.response.end(toJson(result));
+            });
         });
     })
     // get event handlers
     .get('/config/event-handlers', function(req) {
-        var eventHandlers = vertx.getMap('config.event-handlers').values();
-        console.log('eventHandlers: ' + eventHandlers);
-        req.response.end(eventHandlers);
+        var queryString = 'SELECT * '
+                        + ' FROM push_event_handler '
+                        + ' ORDER BY created_date desc';
+        var query = {action: 'select', stmt: queryString, values: [[]]};
+        eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
+            var resultJson = toJson(result);
+            console.log('Responded to config/event-handlers: ' + resultJson);
+            req.response.end(resultJson);
+        });
     })
     .get('/config/event-handlers/:handlerId', function(req) {
         var handlerId = req.params().get("handlerId");
-        console.log('handlerId: ' + handlerId);
-        var eventHandler = vertx.getMap('config.event-handlers').get(handlerId);
-        console.log('handlerId: ' + handlerId + ', eventHandler: ' + eventHandler);
-        req.response.end(eventHandler);
+        var queryString = 'SELECT * '
+                        + ' FROM push_event_handler '
+                        + ' WHERE handler_id = ? ';
+        var query = {action: "select", stmt: queryString, values: [[handlerId]]};
+        eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
+            var resultJson = toJson(result);
+            console.log('Responded to config/event-handlers/' + handlerId + ': ' + resultJson);
+            req.response.end(resultJson);
+        });
     })
     // post event handler
     .post('/config/event-handlers', function(req) {
         req.dataHandler(function(buffer) {
-            console.log('I received ' + buffer.length() + ' bytes');
-            var reqJson = toJs(buffer.toString());
-            if (!validateRequired(req, reqJson.handlerId, 'handlerId is required')) {
+            var reqJs = toJs(req, buffer);
+            if (failedResult(reqJs)) {
                 return;
             }
-            console.log('pushId: ' + buffer.toString());
-            vertx.getMap('config.event-handlers').put(reqJson.handlerId, reqJson);
-            req.response.end(success('Added an event handler successfully', reqJson));
+            if (!validateRequired(req, reqJs.handlerId, 'handlerId is required')) {
+                return;
+            }
+            var insertString = 'INSERT INTO push_event_handler (handler_id, created_date, creator, '
+                        + 'handler_func, desc) '
+                        + 'VALUES (?, ?, ?, ?, ?)';
+            var query = {action: 'insert', stmt: insertString, values: [[
+                reqJs.handlerId, reqJs.createdDate, reqJs.creator,
+                reqJs.handlerFunc, reqJs.desc
+            ]]};
+            eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
+                req.response.end(toJson(result));
+            });
         });
     })
     .optionsWithRegEx('\\/([^\\/]+)', function(req) {
