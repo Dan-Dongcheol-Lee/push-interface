@@ -2,7 +2,8 @@
 {
   "appConfig": {
     "instances": 2,
-    "port": 7220
+    "port": 7220,
+    "pushInterfaceDir": "dist"
   },
   "appMonitor": {
     "instances": 2,
