@@ -3,7 +3,8 @@
   "appConfig": {
     "instances": 2,
     "port": 7220,
-    "pushInterfaceDir": "dist"
+    "pushInterfaceDir": "absolute path to write push interface files"
+    "pushInterfaceTemplate": "push_interface.template"
   },
   "appMonitor": {
     "instances": 2,

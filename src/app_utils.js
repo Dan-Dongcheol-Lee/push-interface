@@ -30,7 +30,6 @@
     };
 
     u.toJs = function(req, buffer) {
-        console.log('Received ' + buffer.length() + ' bytes');
         try {
             return JSON.parse(buffer.toString());
         } catch (ex) {
