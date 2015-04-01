@@ -29,7 +29,7 @@ gulp.task('compress', function() {
     .pipe(gulp.dest('dist'));
 });
 
-gulp.task('default', ['clean', 'compress'], function () {
+gulp.task('default', ['clean'], function () {
     return gulp.src(['src/**/*'])
         .pipe(zip(groupId + '~' + moduleId + '~' + version + '.zip'))
         .pipe(gulp.dest('dist'));
