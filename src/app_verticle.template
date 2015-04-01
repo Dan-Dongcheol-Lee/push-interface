@@ -13,8 +13,7 @@ httpServer.listen(:port, 'localhost', function(err) {
     } else {
         eventBus.registerHandler(':inboundAddr', function(message)) {
             console.log('Yippee! The handler info has been propagated across the cluster');
-
-            eval(':handler()');
+            :handler(message);
         };
         console.log('Started the server(:pushId) successfully');
     }
