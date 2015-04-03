@@ -83,6 +83,13 @@ var generateAppContent = function(template, pushItem) {
         .replace(/:handler/g, pushItem.HANDLER);
 };
 
+var createDirs = function(dirs, callback) {
+    dirs.forEach(function(dir) {
+        file.mkDirSync(dir, true);
+    });
+    callback();
+};
+
 var routeMatcher = new vertx.RouteMatcher()
     // get push interfaces
     .get('/config/push-interfaces', function(req) {
@@ -113,10 +120,22 @@ var routeMatcher = new vertx.RouteMatcher()
     })
     // make push interface files
     .post('/config/push-interfaces-build', function(req) {
+        createDirs([config.pushInterfaceDir, config.pushInterfaceBackupDir], function() {
+            var pushFiles = file.readDirSync(config.pushInterfaceDir, '.*\.js');
+            console.log('Directory contains these push interface js files');
+            for (var i = 0; i < pushFiles.length; i++) {
+                var pushJs = pushFiles[i];
+                console.log('pushJs: ' + pushJs);
+                file.move(pushJs, config.pushInterfaceBackupDir + '/' + pushJs.substring(pushJs.lastIndexOf('\\') + 1));
+            }
+            console.log('All push interface js files were moved for backup successfully');
+        });
+
         req.dataHandler(function(buffer) {
             findPushInterfaces(function(result) {
                 console.log('Responded to config/push-interfaces-build: ' + u.toJson(result));
                 if (result.status === 'ok') {
+
                     file.readFile(config.pushInterfaceTemplate, function(cause, fileBuffer) {
                         var template = fileBuffer.toString();
                         var pushes = result.result;
@@ -124,10 +143,9 @@ var routeMatcher = new vertx.RouteMatcher()
                             var fileName = pushes[i].PUSH_ID + '.js';
                             var appFile = config.pushInterfaceDir + '/' + fileName;
                             var appContent = generateAppContent(template, pushes[i]);
-                            //console.log('generated app content: [' + appContent + ']');
-                            file.createFile(appFile, function() {
-                                file.writeFile(appFile, appContent, function() {
-                                    console.log(appFile + ' has been written successfully.');
+                            file.createFileSync(appFile);
+                            file.writeFile(appFile, appContent, function() {
+                                console.log(appFile + ' has been written successfully.');
 //                                    container.deployVerticle(fileName, 1, {},
 //                                    function(err, deployID) {
 //                                      if (!err) {
@@ -136,7 +154,6 @@ var routeMatcher = new vertx.RouteMatcher()
 //                                        console.log('Deployment [' + fileName + '] failed! ' + err.getMessage());
 //                                      }
 //                                    });
-                                });
                             });
                         }
                     });

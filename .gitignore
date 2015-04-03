@@ -18,3 +18,5 @@ mods
 dist
 *-db.*
 dev_conf.json
+backup
+push
