@@ -1,11 +1,11 @@
-var u = require('app_utils.js');
 var vertx = require('vertx');
 var console = require('vertx/console');
 var container = require('vertx/container');
 var config = container.config;
 var http = require('vertx/http');
 var file = require('vertx/file_system');
-var eventBus = vertx.eventBus;
+var eventBus = require('vertx/event_bus');
+var u = require('app_utils.js');
 var PUSH_LOG_PERSISTOR = 'push_log.persistor';
 
 
@@ -83,14 +83,18 @@ var generateAppContent = function(template, pushItem) {
         .replace(/:handler/g, pushItem.HANDLER);
 };
 
-var createDirs = function(dirs, callback) {
-    dirs.forEach(function(dir) {
-        file.mkDirSync(dir, true);
-    });
-    callback();
-};
-
 var routeMatcher = new vertx.RouteMatcher()
+    .post('/config/setup', function(req) {
+        eventBus.send('service.setup', {
+            appDir: config.pushInterfaceDir, backupDir: config.pushInterfaceBackupDir
+        }, function (reply) {
+            if (reply.status === 'ok') {
+                console.log('app service setup finished successfully');
+            } else {
+                console.log('Unable to setup app service: ' + reply.message);
+            }
+        });
+    })
     // get push interfaces
     .get('/config/push-interfaces', function(req) {
         findPushInterfaces(function(result) {
@@ -120,17 +124,6 @@ var routeMatcher = new vertx.RouteMatcher()
     })
     // make push interface files
     .post('/config/push-interfaces-build', function(req) {
-        createDirs([config.pushInterfaceDir, config.pushInterfaceBackupDir], function() {
-            var pushFiles = file.readDirSync(config.pushInterfaceDir, '.*\.js');
-            console.log('Directory contains these push interface js files');
-            for (var i = 0; i < pushFiles.length; i++) {
-                var pushJs = pushFiles[i];
-                console.log('pushJs: ' + pushJs);
-                file.move(pushJs, config.pushInterfaceBackupDir + '/' + pushJs.substring(pushJs.lastIndexOf('\\') + 1));
-            }
-            console.log('All push interface js files were moved for backup successfully');
-        });
-
         req.dataHandler(function(buffer) {
             findPushInterfaces(function(result) {
                 console.log('Responded to config/push-interfaces-build: ' + u.toJson(result));

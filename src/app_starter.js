@@ -1,8 +1,8 @@
 var vertx = require('vertx');
 var console = require('vertx/console');
 var container = require('vertx/container');
+var eventBus = require('vertx/event_bus');
 var config = container.config;
-var eventBus = vertx.eventBus;
 var PUSH_LOG_PERSISTOR = 'push_log.persistor';
 
 container.deployModule('com.bloidonia~mod-jdbc-persistor~2.1.3',
@@ -60,6 +60,15 @@ container.deployModule('com.bloidonia~mod-jdbc-persistor~2.1.3',
     }
 });
 
+container.deployVerticle('app_service.js', config.appService.instances, config.appService,
+function(err, deployID) {
+  if (!err) {
+    console.log('The [app_service] has been deployed, deployment ID is ' + deployID);
+  } else {
+    console.log('Deployment [app_service] failed! ' + err.getMessage());
+  }
+});
+
 container.deployVerticle('app_config.js', config.appConfig.instances, config.appConfig,
 function(err, deployID) {
   if (!err) {
@@ -69,7 +78,7 @@ function(err, deployID) {
   }
 });
 
-//container.deployVerticle('app_monitor.js', config.appConfig.instances, config.appMonitor,
+//container.deployVerticle('app_monitor.js', config.appMonitor.instances, config.appMonitor,
 //function(err, deployID) {
 //  if (!err) {
 //    console.log('The [app_monitor] has been deployed, deployment ID is ' + deployID);

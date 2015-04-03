@@ -3,7 +3,7 @@ var vertx = require('vertx');
 var console = require('vertx/console');
 var container = require('vertx/container');
 var http = require('vertx/http');
-var eventBus = vertx.eventBus;
+var eventBus = require('vertx/event_bus');
 var lastSentTime = java.lang.System.currentTimeMillis();
 var PUSH_LOG_PERSISTOR = 'push_log.persistor';
 
