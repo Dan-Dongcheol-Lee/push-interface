@@ -9,9 +9,12 @@ var u = require('app_utils.js');
 var PUSH_LOG_PERSISTOR = 'push_log.persistor';
 
 
-var findPushInterfaces = function(callback) {
+var findPushInterfaces = function(where, callback) {
     var sql = 'SELECT * '
             + ' FROM push_interface '
+        if (where.deployIdIsNull) {
+            + ' WHERE deploy_id is null '
+        }
             + ' ORDER BY created_date desc';
     var query = {action: 'select', stmt: sql, values: [[]]};
     eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
@@ -38,6 +41,14 @@ var insertPushInterface = function(reqJs, callback) {
         reqJs.port, reqJs.inboundAddr, reqJs.outboundAddr, reqJs.handler,
         reqJs.logging, reqJs.msgFilter, reqJs.desc
     ]]};
+    eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
+        callback(result);
+    });
+};
+
+var updateDeployIdPushInterface = function(pushId, deployId, callback) {
+    var sql = 'UPDATE push_interface SET deploy_id = ? WHERE push_id = ?';
+    var query = {action: 'update', stmt: sql, values: [[deployId, pushId]]};
     eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
         callback(result);
     });
@@ -97,7 +108,7 @@ var routeMatcher = new vertx.RouteMatcher()
     })
     // get push interfaces
     .get('/config/push-interfaces', function(req) {
-        findPushInterfaces(function(result) {
+        findPushInterfaces({deployIdIsNull: false}, function(result) {
             var resultJson = u.toJson(result);
             console.log('Responded to config/push-interfaces: ' + resultJson);
             req.response.end(resultJson);
@@ -125,32 +136,32 @@ var routeMatcher = new vertx.RouteMatcher()
     // make push interface files
     .post('/config/push-interfaces-build', function(req) {
         req.dataHandler(function(buffer) {
-            findPushInterfaces(function(result) {
+            findPushInterfaces({deployIdIsNull: true}, function(result) {
                 console.log('Responded to config/push-interfaces-build: ' + u.toJson(result));
                 if (result.status === 'ok') {
-
                     file.readFile(config.pushInterfaceTemplate, function(cause, fileBuffer) {
-                        var template = fileBuffer.toString();
+                        var templateContent = fileBuffer.toString();
                         var pushes = result.result;
                         for (var i = 0; i < pushes.length; i++) {
-                            var fileName = pushes[i].PUSH_ID + '.js';
-                            var appFile = config.pushInterfaceDir + '/' + fileName;
-                            var appContent = generateAppContent(template, pushes[i]);
-                            file.createFileSync(appFile);
-                            file.writeFile(appFile, appContent, function() {
-                                console.log(appFile + ' has been written successfully.');
-//                                    container.deployVerticle(fileName, 1, {},
-//                                    function(err, deployID) {
-//                                      if (!err) {
-//                                        console.log('The [' + fileName + '] has been deployed, deployment ID is ' + deployID);
-//                                      } else {
-//                                        console.log('Deployment [' + fileName + '] failed! ' + err.getMessage());
-//                                      }
-//                                    });
+                            eventBus.send('service.deploy', {
+                                fileName: pushes[i].PUSH_ID + '.js',
+                                deployId: pushes[i].DEPLOY_ID,
+                                appFile: config.pushInterfaceDir + '/' + fileName,
+                                appDir: config.pushInterfaceDir,
+                                backupDir: config.pushInterfaceBackupDir,
+                                appTemplateContent: templateContent,
+                                appInfo: pushes[i]
+                            }, function(reply) {
+                                console.log('Got a reply: ' + u.toJson(reply));
+                                if (reply.status === 'ok') {
+                                    updateDeployIdPushInterface(pushes[i].PUSH_ID, reply.result.deployId, function(result) {
+                                        console.log('Result of updateDeployIdPushInterface[' + pushes[i].PUSH_ID + ']: ' + u.toJson(result));
+                                    });
+                                }
                             });
                         }
                     });
-                    req.response.end(u.success('All push interface files have been built successfully'));
+                    req.response.end(u.success('All push interface files have been built successfully. Please check them respectively'));
                 } else {
                     req.response.end(resultJson);
                 }

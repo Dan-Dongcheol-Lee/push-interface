@@ -20,6 +20,30 @@ var backupApp = function(appPath, backupDir) {
     }
 };
 
+var deployService = function(fileName, callback) {
+    container.deployVerticle(fileName, 2, {},
+    function(err, deployId) {
+        if (!err) {
+            console.log('The [' + fileName + '] has been deployed, deployment ID is ' + deployId);
+        } else {
+            console.log('Deployment [' + fileName + '] failed! ' + err.getMessage());
+        }
+        callback(err, deployId);
+    });
+}
+
+var undeployService = function(fileName, deployId, callback) {
+    if (deployId) {
+        container.undeployVerticle(deployId,
+            function() {
+                console.log('The [' + fileName + ', ' + deployId + '] has been undeployed');
+                callback();
+            });
+    } else {
+        callback();
+    }
+}
+
 eventBus.registerLocalHandler('service.setup', function(message) {
     createDirs([message.appDir, message.backupDir], function() {
         var appFiles = file.readDirSync(message.appDir, '.*\.js');
@@ -33,12 +57,32 @@ eventBus.registerLocalHandler('service.setup', function(message) {
     });
 });
 
-eventBus.registerLocalHandler('service.deploy', function(message) {
-
+eventBus.registerLocalHandler('service.deploy', function(message, replier) {
+    console.log('service.deploy: ' + u.toJson(message));
+    undeployService(message.fileName, message.deployId, function(err) {
+        if (!err) {
+            backupApp(message.appFile, message.backupDir);
+            var appFile = message.appDir + '/' + message.fileName;
+            var appContent = generateAppContent(message.appTemplateContent, message.appInfo);
+            file.createFileSync(appFile);
+            file.writeFile(appFile, appContent, function() {
+                console.log(appFile + ' has been written successfully.');
+                deployService(message.fileName, function(err, deployId) {
+                    if (!err) {
+                        replier(u.success('The [' + message.fileName + '] has been deployed', {deployId: deployId}));
+                    } else {
+                        replier(u.failure('Deployment [' + fileName + '] failed! ' + err.getMessage()));
+                    }
+                });
+            });
+        }
+    });
 });
 
-eventBus.registerLocalHandler('service.un-deploy', function(message) {
-
+eventBus.registerLocalHandler('service.un-deploy', function(message, replier) {
+    undeployService(message.fileName, message.deployId, function() {
+        replier(u.success('The [' + fileName + ', ' + deployId + '] has been undeployed'));
+    });
 });
 
 eventBus.registerLocalHandler('service.deploy-all', function(message) {

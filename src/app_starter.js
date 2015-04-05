@@ -39,6 +39,7 @@ container.deployModule('com.bloidonia~mod-jdbc-persistor~2.1.3',
                 + 'logging CHAR(1), '
                 + 'msg_filter VARCHAR(2000), '
                 + 'desc VARCHAR(2000), '
+                + 'deploy_id VARCHAR(100), '
                 + 'CONSTRAINT push_interface_pk PRIMARY KEY(push_id))'
         };
         eventBus.send(PUSH_LOG_PERSISTOR, createPushInterface);
