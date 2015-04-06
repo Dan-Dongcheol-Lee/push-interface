@@ -9,10 +9,12 @@ var u = require('app_utils.js');
 var PUSH_LOG_PERSISTOR = 'push_log.persistor';
 
 
-var findPushInterfaces = function(where, callback) {
+var findPushInterfaces = function(predicates, callback) {
+    console.log('Called finedPushInterfaces: predicates: ' + u.toJson(predicates));
+
     var sql = 'SELECT * '
             + ' FROM push_interface '
-        if (where.deployIdIsNull) {
+        if (predicates.deployIdIsNull) {
             + ' WHERE deploy_id is null '
         }
             + ' ORDER BY created_date desc';
@@ -144,18 +146,19 @@ var routeMatcher = new vertx.RouteMatcher()
                         var pushes = result.result;
                         for (var i = 0; i < pushes.length; i++) {
                             eventBus.send('service.deploy', {
+                                pushId: pushes[i].PUSH_ID,
                                 fileName: pushes[i].PUSH_ID + '.js',
                                 deployId: pushes[i].DEPLOY_ID,
-                                appFile: config.pushInterfaceDir + '/' + fileName,
+                                appFile: config.pushInterfaceDir + '/' + pushes[i].PUSH_ID + '.js',
                                 appDir: config.pushInterfaceDir,
                                 backupDir: config.pushInterfaceBackupDir,
-                                appTemplateContent: templateContent,
-                                appInfo: pushes[i]
+                                appContent: generateAppContent(templateContent, pushes[i])
                             }, function(reply) {
                                 console.log('Got a reply: ' + u.toJson(reply));
+                                // TODO update deploy result with deploy id
                                 if (reply.status === 'ok') {
-                                    updateDeployIdPushInterface(pushes[i].PUSH_ID, reply.result.deployId, function(result) {
-                                        console.log('Result of updateDeployIdPushInterface[' + pushes[i].PUSH_ID + ']: ' + u.toJson(result));
+                                    updateDeployIdPushInterface(reply.result.pushId, reply.result.deployId, function(result) {
+                                        console.log('Result of updateDeployIdPushInterface[' + reply.result.pushId + ']: ' + u.toJson(result));
                                     });
                                 }
                             });

@@ -5,8 +5,8 @@
         return JSON.stringify(jsObject);
     };
 
-    u.failure = function(msg) {
-        return this.toJson({status: 'failed', message: msg});
+    u.failure = function(msg, result) {
+        return this.toJson({status: 'failed', message: msg, result: result});
     };
 
     u.success = function(msg, result) {

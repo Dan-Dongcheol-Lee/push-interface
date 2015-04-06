@@ -16,12 +16,18 @@ var createDirs = function(dirs, callback) {
 var backupApp = function(appPath, backupDir) {
     if (file.existsSync(appPath)) {
         var path = appPath.replace(/\\/g, '/');
-        file.move(path, backupDir + '/' + path.substring(path.lastIndexOf('/') + 1));
+        var backupFile = backupDir + '/' + path.substring(path.lastIndexOf('/') + 1);
+        // TODO Might consider even backup this with timestamp later.
+        if (file.existsSync(backupFile)) {
+            file.deleteSync(backupFile);
+        }
+        file.moveSync(path, backupFile);
     }
 };
 
 var deployService = function(fileName, callback) {
-    container.deployVerticle(fileName, 2, {},
+    // Allow only verticles in javascript.
+    container.deployVerticle('rhino:' + fileName, 2, {},
     function(err, deployId) {
         if (!err) {
             console.log('The [' + fileName + '] has been deployed, deployment ID is ' + deployId);
@@ -47,7 +53,7 @@ var undeployService = function(fileName, deployId, callback) {
 eventBus.registerLocalHandler('service.setup', function(message) {
     createDirs([message.appDir, message.backupDir], function() {
         var appFiles = file.readDirSync(message.appDir, '.*\.js');
-        console.log('Directory contains these app js files');
+        console.log('Directory contains these app js files: ' + appFiles.length);
         for (var i = 0; i < appFiles.length; i++) {
             var appFile = appFiles[i];
             console.log('appFile: ' + appFile);
@@ -62,19 +68,25 @@ eventBus.registerLocalHandler('service.deploy', function(message, replier) {
     undeployService(message.fileName, message.deployId, function(err) {
         if (!err) {
             backupApp(message.appFile, message.backupDir);
-            var appFile = message.appDir + '/' + message.fileName;
-            var appContent = generateAppContent(message.appTemplateContent, message.appInfo);
-            file.createFileSync(appFile);
-            file.writeFile(appFile, appContent, function() {
-                console.log(appFile + ' has been written successfully.');
-                deployService(message.fileName, function(err, deployId) {
+            file.createFileSync(message.appFile);
+            file.writeFile(message.appFile, message.appContent, function() {
+                console.log(message.pushId + ' has been written successfully.');
+                deployService(message.appFile, function(err, deployId) {
                     if (!err) {
-                        replier(u.success('The [' + message.fileName + '] has been deployed', {deployId: deployId}));
+                        replier(u.success('The [' + message.pushId + '] has been deployed', {
+                            pushId: message.pushId, deployId: deployId
+                        }));
                     } else {
-                        replier(u.failure('Deployment [' + fileName + '] failed! ' + err.getMessage()));
+                        replier(u.failure('The [' + message.pushId + '] failed to deploy: ' + err.getMessage(), {
+                            pushId: message.pushId
+                        }));
                     }
                 });
             });
+        } else {
+            replier(u.failure('The [' + message.pushId + '] failed to un-deploy: ' + err.getMessage(), {
+                pushId: message.pushId
+            }));
         }
     });
 });
