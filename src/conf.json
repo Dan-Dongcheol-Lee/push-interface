@@ -6,7 +6,8 @@
   "appConfig": {
     "instances": 2,
     "port": 7220,
-    "pushInterfaceDir": "absolute path to write push interface files"
+    "pushInterfaceDir": "absolute path to write push interface files",
+    "pushInterfaceBackupDir": "absolute path to back up generated push interface files",
     "pushInterfaceTemplate": "push_interface.template"
   },
   "appMonitor": {

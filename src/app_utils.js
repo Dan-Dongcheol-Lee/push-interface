@@ -5,12 +5,20 @@
         return JSON.stringify(jsObject);
     };
 
+    u.failureJs = function(msg, result) {
+        return {status: 'failed', message: msg, result: result};
+    };
+
     u.failure = function(msg, result) {
-        return this.toJson({status: 'failed', message: msg, result: result});
+        return this.toJson(u.failureJs(msg, result));
+    };
+
+    u.successJs = function(msg, result) {
+        return {status: 'ok', message: msg, result: result};
     };
 
     u.success = function(msg, result) {
-        return this.toJson({status: 'ok', message: msg, result: result});
+        return this.toJson(u.successJs(msg, result));
     };
 
     u.failedResult = function(msg) {

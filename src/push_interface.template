@@ -3,15 +3,41 @@ var console = require('vertx/console');
 var container = require('vertx/container');
 var http = require('vertx/http');
 var eventBus = vertx.eventBus;
+
+var loggingHandler = function(handler) {
+    if (!:needToLog) {
+        return handler;
+    }
+    return function(message, replier) {
+        console.log('Called loggingHandler');
+        return handler(message, replier);
+    }
+};
+
+var messageFilterHandler = function(handler) {
+    if (!:msgFilter) {
+        return handler;
+    }
+    return function(message, replier) {
+        console.log('Called messageFilterHandler');
+        handler(message, replier);
+    };
+};
+
+var :handlerId = :handlerFunction
+;
+
 var httpServer = http.createHttpServer();
 vertx.createSockJSServer(httpServer).bridge({prefix : '/:pushId'}, [{address: ':inboundAddr'}], [{}]);
 httpServer.listen(:port, 'localhost', function(err) {
     if (err) {
         console.log('Unable to start a server: ' + err);
     } else {
-        eventBus.registerHandler(':inboundAddr', function(message) {
+        eventBus.registerHandler(':inboundAddr', function(message, replier) {
             console.log('Yippee! The handler info has been propagated across the cluster');
-            //:handler(message);
+            loggingHandler(
+                messageFilterHandler(
+                    :handlerId(message, replier)));
         });
         console.log('The [:pushId] push interface has been started successfully');
     }

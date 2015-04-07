@@ -52,6 +52,7 @@ var updateDeployIdPushInterface = function(pushId, deployId, callback) {
     var sql = 'UPDATE push_interface SET deploy_id = ? WHERE push_id = ?';
     var query = {action: 'update', stmt: sql, values: [[deployId, pushId]]};
     eventBus.send(PUSH_LOG_PERSISTOR, query, function(result) {
+        result.pushId = pushId;
         callback(result);
     });
 };
@@ -76,6 +77,22 @@ var findEventHandlerById = function(handlerId, callback) {
     });
 };
 
+var doWithEventHandler = function(pushApp, callback) {
+    findEventHandlerById(pushApp.HANDLER, function(data) {
+        if (data.status !== 'ok') {
+            // TODO Handler an exception
+            return;
+        }
+        if (data.result.length === 0) {
+            // TODO Handler an exception
+            return;
+        }
+        var handlerFunction = data.result[0].HANDLER_FUNC;
+        console.log('handlerId: ' + data.result[0].HANDLER_ID + ', function: ' + handlerFunction);
+        callback(pushApp, handlerFunction);
+    });
+};
+
 var insertEventHandler = function(reqJs, callback) {
     var sql = 'INSERT INTO push_event_handler (handler_id, created_date, creator, '
             + 'handler_func, desc) '
@@ -89,11 +106,15 @@ var insertEventHandler = function(reqJs, callback) {
     });
 }
 
-var generateAppContent = function(template, pushItem) {
+var generateAppContent = function(template, pushItem, handlerFunction) {
     return template.replace(/:pushId/g, pushItem.PUSH_ID)
-        .replace(/:inboundAddr/g, pushItem.INBOUND_ADDR)
         .replace(/:port/g, pushItem.PORT)
-        .replace(/:handler/g, pushItem.HANDLER);
+        .replace(/:handlerId/g, pushItem.HANDLER)
+        .replace(/:handlerFunction/g, handlerFunction)
+        .replace(/:inboundAddr/g, pushItem.INBOUND_ADDR)
+        .replace(/:outboundAddr/g, pushItem.OUTBOUND_ADDR)
+        .replace(/:needToLog/g, pushItem.LOGGING)
+        .replace(/:msgFilter/g, pushItem.MSG_FILTER);
 };
 
 var routeMatcher = new vertx.RouteMatcher()
@@ -138,29 +159,30 @@ var routeMatcher = new vertx.RouteMatcher()
     // make push interface files
     .post('/config/push-interfaces-build', function(req) {
         req.dataHandler(function(buffer) {
-            findPushInterfaces({deployIdIsNull: true}, function(result) {
-                console.log('Responded to config/push-interfaces-build: ' + u.toJson(result));
-                if (result.status === 'ok') {
+            findPushInterfaces({deployIdIsNull: true}, function(pushData) {
+                console.log('Responded to config/push-interfaces-build: ' + u.toJson(pushData));
+                if (pushData.status === 'ok') {
                     file.readFile(config.pushInterfaceTemplate, function(cause, fileBuffer) {
                         var templateContent = fileBuffer.toString();
-                        var pushes = result.result;
+                        var pushes = pushData.result;
                         for (var i = 0; i < pushes.length; i++) {
-                            eventBus.send('service.deploy', {
-                                pushId: pushes[i].PUSH_ID,
-                                fileName: pushes[i].PUSH_ID + '.js',
-                                deployId: pushes[i].DEPLOY_ID,
-                                appFile: config.pushInterfaceDir + '/' + pushes[i].PUSH_ID + '.js',
-                                appDir: config.pushInterfaceDir,
-                                backupDir: config.pushInterfaceBackupDir,
-                                appContent: generateAppContent(templateContent, pushes[i])
-                            }, function(reply) {
-                                console.log('Got a reply: ' + u.toJson(reply));
-                                // TODO update deploy result with deploy id
-                                if (reply.status === 'ok') {
-                                    updateDeployIdPushInterface(reply.result.pushId, reply.result.deployId, function(result) {
-                                        console.log('Result of updateDeployIdPushInterface[' + reply.result.pushId + ']: ' + u.toJson(result));
-                                    });
-                                }
+                            doWithEventHandler(pushes[i], function(pushApp, handlerFunction) {
+                                eventBus.send('service.deploy', {
+                                    pushId: pushApp.PUSH_ID,
+                                    fileName: pushApp.PUSH_ID + '.js',
+                                    deployId: pushApp.DEPLOY_ID,
+                                    appFile: config.pushInterfaceDir + '/' + pushApp.PUSH_ID + '.js',
+                                    appDir: config.pushInterfaceDir,
+                                    backupDir: config.pushInterfaceBackupDir,
+                                    appContent: generateAppContent(templateContent, pushApp, handlerFunction)
+                                }, function(reply) {
+                                    // TODO update deploy result with deploy id
+                                    if (reply.status === 'ok') {
+                                        updateDeployIdPushInterface(reply.result.pushId, reply.result.deployId, function(data) {
+                                            console.log('Result of updateDeployIdPushInterface: ' + u.toJson(data));
+                                        });
+                                    }
+                                });
                             });
                         }
                     });
@@ -190,7 +212,7 @@ var routeMatcher = new vertx.RouteMatcher()
     // post event handler
     .post('/config/event-handlers', function(req) {
         req.dataHandler(function(buffer) {
-            var reqJs = toJs(req, buffer);
+            var reqJs = u.toJs(req, buffer);
             if (u.failedResult(reqJs)) { return; }
             if (!u.validateRequired(req, reqJs.handlerId, 'handlerId is required')) { return; }
             insertEventHandler(reqJs, function(result) {
