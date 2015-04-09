@@ -20,17 +20,30 @@ gulp.task('bower', function() {
 });
 
 gulp.task('clean', function(cb) {
-  del(['dist/*', '!dist/mods'], cb);
+  del(['build/*', 'dist/*', '!dist/mods'], cb);
 });
 
 gulp.task('compress', function() {
   gulp.src('src/*.js')
     .pipe(uglify({hoist_vars: true}))
-    .pipe(gulp.dest('dist'));
+    .pipe(gulp.dest('build'));
 });
 
 gulp.task('default', ['clean'], function () {
     return gulp.src(['src/**/*'])
+        .pipe(zip(groupId + '~' + moduleId + '~' + version + '.zip'))
+        .pipe(gulp.dest('dist'));
+});
+
+gulp.task('copy', ['clean'], function () {
+    gulp.src(['src/*.json', 'src/*.template'])
+        .pipe(gulp.dest('build'));
+    gulp.src(['src/lib/**/*'])
+        .pipe(gulp.dest('build/lib'));
+});
+
+gulp.task('pack', ['clean', 'compress', 'copy'], function () {
+    return gulp.src(['build/*', 'build/lib/**/*'])
         .pipe(zip(groupId + '~' + moduleId + '~' + version + '.zip'))
         .pipe(gulp.dest('dist'));
 });
