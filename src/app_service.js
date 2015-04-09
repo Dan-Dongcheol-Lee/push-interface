@@ -1,6 +1,7 @@
 var vertx = require('vertx');
 var console = require('vertx/console');
 var container = require('vertx/container');
+var logger = container.logger;
 var file = require('vertx/file_system');
 var eventBus = require('vertx/event_bus');
 var u = require('app_utils.js');
@@ -26,9 +27,7 @@ var backupApp = function(appPath, backupDir) {
 };
 
 var deployService = function(fileName, callback) {
-    // Allow only verticles in javascript.
-    container.deployVerticle('rhino:' + fileName, 2, {},
-    function(err, deployId) {
+    container.deployVerticle(fileName, 2, {}, function(err, deployId) {
         if (!err) {
             console.log('The [' + fileName + '] has been deployed, deployment ID is ' + deployId);
         } else {
@@ -40,23 +39,21 @@ var deployService = function(fileName, callback) {
 
 var undeployService = function(pushId, deployId, callback) {
     if (deployId) {
-        container.undeployVerticle(deployId,
-            function(err) {
-                console.log('The [' + pushId + ', ' + deployId + '] has been un-deployed');
-                callback(err);
-            });
+        container.undeployVerticle(deployId, function(err) {
+            callback(err);
+        });
     } else {
-        callback(true);
+        callback({getMessage: function() { return 'deploy id is required'; }});
     }
 }
 
 eventBus.registerLocalHandler('service.setup', function(message) {
     createDirs([message.appDir, message.backupDir], function() {
         var appFiles = file.readDirSync(message.appDir, '.*\.js');
-        console.log('Directory contains these app js files: ' + appFiles.length);
+        logger.debug('Directory contains these app js files: ' + appFiles.length);
         for (var i = 0; i < appFiles.length; i++) {
             var appFile = appFiles[i];
-            console.log('appFile: ' + appFile);
+            logger.debug('appFile: ' + appFile);
             backupApp(appFile, message.backupDir);
         }
         console.log('All app js files were moved for backup successfully');
@@ -64,47 +61,41 @@ eventBus.registerLocalHandler('service.setup', function(message) {
 });
 
 eventBus.registerLocalHandler('service.deploy', function(message, replier) {
-    console.log('service.deploy: ' + u.toJson(message));
+//    console.log('service.deploy: ' + u.toJson(message));
     undeployService(message.pushId, message.deployId, function(err) {
-        if (!err) {
-            backupApp(message.appFile, message.backupDir);
-            file.createFileSync(message.appFile);
-            file.writeFile(message.appFile, message.appContent, function() {
-                console.log(message.pushId + ' has been written successfully.');
-                deployService(message.appFile, function(err, deployId) {
-                    if (!err) {
-                        replier(u.successJs('The [' + message.pushId + '] has been deployed', {
-                            pushId: message.pushId, deployId: deployId
-                        }));
-                    } else {
-                        replier(u.failureJs('The [' + message.pushId + '] failed to deploy: ' + err.getMessage(), {
-                            pushId: message.pushId
-                        }));
-                    }
-                });
+        if (err) {
+            console.log(u.failure('The [' + message.pushId + '] failed to un-deploy: ' + err.getMessage(), { pushId: message.pushId }));
+        } else {
+            console.log(u.success('The [' + message.pushId + '] has been un-deployed successfully', { pushId: message.pushId }));
+        }
+        backupApp(message.appFile, message.backupDir);
+        file.createFileSync(message.appFile);
+        file.writeFile(message.appFile, message.appContent, function() {
+            logger.debug(message.pushId + ' has been written successfully.');
+            deployService(message.appFile, function(err, deployId) {
+                if (!err) {
+                    replier(u.successJs('The [' + message.pushId + '] has been deployed', {
+                        pushId: message.pushId, deployId: deployId
+                    }));
+                } else {
+                    replier(u.failureJs('The [' + message.pushId + '] failed to deploy: ' + err.getMessage(), {
+                        pushId: message.pushId
+                    }));
+                }
             });
-        } else {
-            replier(u.failureJs('The [' + message.pushId + '] failed to un-deploy: ' + err.getMessage(), {
-                pushId: message.pushId
-            }));
-        }
+        });
     });
 });
 
-eventBus.registerLocalHandler('service.un-deploy', function(message, replier) {
+eventBus.registerLocalHandler('service.undeploy', function(message, replier) {
     undeployService(message.pushId, message.deployId, function(err) {
-        if (!err) {
-            replier(u.successJs('The [' + message.pushId + ', ' + message.deployId + '] has been un-deployed'));
+        console.log('undeploy result:' + err);
+        if (err) {
+            console.log('The [' + message.pushId + '] failed to un-deploy: ' + err.getMessage());
+            replier(u.failureJs('The [' + message.pushId + '] failed to un-deploy: ' + err.getMessage(), message));
         } else {
-            replier(u.failureJs('The [' + message.pushId + ', ' + message.deployId + '] failed to un-deploy'));
+            console.log('The [' + message.pushId + '] has been un-deployed successfully');
+            replier(u.successJs('The [' + message.pushId + '] has been un-deployed successfully', message));
         }
     });
-});
-
-eventBus.registerLocalHandler('service.deploy-all', function(message) {
-
-});
-
-eventBus.registerLocalHandler('service.un-deploy-all', function(message) {
-
 });

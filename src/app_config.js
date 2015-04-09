@@ -117,6 +117,25 @@ var generateAppContent = function(template, pushItem, handlerFunction) {
         .replace(/:msgFilter/g, pushItem.MSG_FILTER);
 };
 
+var deployAppService = function(pushApp, appContent, callback) {
+    eventBus.send('service.deploy', {
+        pushId: pushApp.PUSH_ID,
+        fileName: pushApp.PUSH_ID + '.js',
+        deployId: pushApp.DEPLOY_ID,
+        appFile: config.pushInterfaceDir + '/' + pushApp.PUSH_ID + '.js',
+        appDir: config.pushInterfaceDir,
+        backupDir: config.pushInterfaceBackupDir,
+        appContent: appContent
+    }, callback);
+}
+
+var undeployAppService = function(pushApp, callback) {
+    eventBus.send('service.undeploy', {
+        pushId: pushApp.PUSH_ID,
+        deployId: pushApp.DEPLOY_ID
+    }, callback);
+}
+
 var routeMatcher = new vertx.RouteMatcher()
     .post('/config/setup', function(req) {
         eventBus.send('service.setup', {
@@ -156,43 +175,6 @@ var routeMatcher = new vertx.RouteMatcher()
             });
         });
     })
-    // make push interface files
-    .post('/config/push-interfaces-build', function(req) {
-        req.dataHandler(function(buffer) {
-            findPushInterfaces({deployIdIsNull: true}, function(pushData) {
-                console.log('Responded to config/push-interfaces-build: ' + u.toJson(pushData));
-                if (pushData.status === 'ok') {
-                    file.readFile(config.pushInterfaceTemplate, function(cause, fileBuffer) {
-                        var templateContent = fileBuffer.toString();
-                        var pushes = pushData.result;
-                        for (var i = 0; i < pushes.length; i++) {
-                            doWithEventHandler(pushes[i], function(pushApp, handlerFunction) {
-                                eventBus.send('service.deploy', {
-                                    pushId: pushApp.PUSH_ID,
-                                    fileName: pushApp.PUSH_ID + '.js',
-                                    deployId: pushApp.DEPLOY_ID,
-                                    appFile: config.pushInterfaceDir + '/' + pushApp.PUSH_ID + '.js',
-                                    appDir: config.pushInterfaceDir,
-                                    backupDir: config.pushInterfaceBackupDir,
-                                    appContent: generateAppContent(templateContent, pushApp, handlerFunction)
-                                }, function(reply) {
-                                    // TODO update deploy result with deploy id
-                                    if (reply.status === 'ok') {
-                                        updateDeployIdPushInterface(reply.result.pushId, reply.result.deployId, function(data) {
-                                            console.log('Result of updateDeployIdPushInterface: ' + u.toJson(data));
-                                        });
-                                    }
-                                });
-                            });
-                        }
-                    });
-                    req.response.end(u.success('All push interface files have been built successfully. Please check them respectively'));
-                } else {
-                    req.response.end(resultJson);
-                }
-            });
-        });
-    })
     // get event handlers
     .get('/config/event-handlers', function(req) {
         findEventHandlers(function(result) {
@@ -220,6 +202,114 @@ var routeMatcher = new vertx.RouteMatcher()
             });
         });
     })
+
+    // build and deploy all push interfaces
+    .post('/config/push-interfaces/deploy-all', function(req) {
+        req.dataHandler(function(buffer) {
+            findPushInterfaces({deployIdIsNull: true}, function(pushData) {
+                console.log('Responded to config/push-interfaces-build: ' + u.toJson(pushData));
+                if (pushData.status === 'ok') {
+                    file.readFile(config.pushInterfaceTemplate, function(cause, fileBuffer) {
+                        var templateContent = fileBuffer.toString();
+                        var pushes = pushData.result;
+                        for (var i = 0; i < pushes.length; i++) {
+                            doWithEventHandler(pushes[i], function(pushApp, handlerFunction) {
+                                deployAppService(pushApp, generateAppContent(fileBuffer.toString(), pushApp, handlerFunction),
+                                function(reply) {
+                                    if (reply.status === 'ok') {
+                                        updateDeployIdPushInterface(reply.result.pushId, reply.result.deployId, function(data) {
+                                            console.log('Result of deployment: ' + u.toJson(data));
+                                        });
+                                    }
+                                });
+                            });
+                        }
+                    });
+                    req.response.end(u.success('All push interface files have been deployed. Please check them respectively'));
+                } else {
+                    req.response.end(pushData);
+                }
+            });
+        });
+    })
+
+    // deploy a push interface
+    .post('/config/push-interfaces/deploy', function(req) {
+        req.dataHandler(function(buffer) {
+            var reqJs = u.toJs(req, buffer);
+            if (u.failedResult(reqJs)) { return; }
+            if (!u.validateRequired(req, reqJs.pushId, 'pushId is required')) { return; }
+
+            file.readFile(config.pushInterfaceTemplate, function(cause, fileBuffer) {
+                findPushInterfaceById(reqJs.pushId, function(pushData) {
+                    if (pushData.status === 'ok') {
+                        var pushApp = pushData.result[0];
+                        doWithEventHandler(pushApp, function(pushApp, handlerFunction) {
+                            deployAppService(pushApp, generateAppContent(fileBuffer.toString(), pushApp, handlerFunction),
+                            function(reply) {
+                                if (reply.status === 'ok') {
+                                    updateDeployIdPushInterface(reply.result.pushId, reply.result.deployId, function(data) {
+                                        console.log('Result of deployment: ' + u.toJson(data));
+                                    });
+                                }
+                                req.response.end(u.toJson(reply));
+                            });
+                        });
+                    } else {
+                        req.response.end(u.toJson(pushData));
+                    }
+                });
+            });
+        });
+    })
+
+    // undeploy a push interface
+    .post('/config/push-interfaces/undeploy', function(req) {
+        req.dataHandler(function(buffer) {
+            var reqJs = u.toJs(req, buffer);
+            if (u.failedResult(reqJs)) { return; }
+            if (!u.validateRequired(req, reqJs.pushId, 'pushId is required')) { return; }
+
+            findPushInterfaceById(reqJs.pushId, function(pushData) {
+                console.log('result: ' + u.toJson(pushData));
+                if (pushData.status === 'ok' && pushData.result.length > 0) {
+                    var pushApp = pushData.result[0];
+                    undeployAppService(pushApp, function(reply) {
+                        updateDeployIdPushInterface(reply.result.pushId, null, function(data) {
+                            console.log('Result of un-deployment: ' + u.toJson(data));
+                        });
+                        req.response.end(u.toJson(reply));
+                    });
+                } else {
+                    req.response.end(u.toJson(pushData));
+                }
+            });
+        });
+    })
+
+    // undeploy all push interfaces
+    .post('/config/push-interfaces/undeploy-all', function(req) {
+        req.dataHandler(function(buffer) {
+            var reqJs = u.toJs(req, buffer);
+            if (u.failedResult(reqJs)) { return; }
+
+            findPushInterfaces({deployIdIsNull: false}, function(pushData) {
+                if (pushData.status === 'ok') {
+                    pushData.result.forEach(function(pushApp) {
+                        undeployAppService(pushApp, function(reply) {
+                            updateDeployIdPushInterface(reply.result.pushId, null, function(data) {
+                                console.log('Result of updateDeployIdPushInterface: ' + u.toJson(data));
+                            });
+                        });
+                    });
+                    req.response.end(u.success('All push interface files have been un-deployed. Please check them respectively'));
+                } else {
+                    req.response.end(pushData);
+                }
+            });
+        });
+    })
+
     .optionsWithRegEx('\\/([^\\/]+)', function(req) {
         req.response
             .putHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
