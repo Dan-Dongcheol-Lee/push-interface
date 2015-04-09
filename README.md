@@ -23,19 +23,23 @@ with conf.json in 'src' directory which can be used for the module configuration
 
 ## RESTful APIs for push interface
 
-push-interface application provides RESTful APIs to manage and deploy push interfaces and event handlers.
+push-interface application provides RESTful APIs to manage and deploy push interfaces and event handlers and monitor push logs.
 The following APIs are available at the moment.
 
-### http://host:port/config/setup [POST]
+#### http://host:port/config/setup [POST]
+
 This API must be called once to setup all necessary directories such as push interfaces app files and the backup directory.
 
-### http://host:port/config/push-interfaces [GET]
+#### http://host:port/config/push-interfaces [GET]
+
 This API performs searching push interfaces.
 
-### http://host:port/config/push-interfaces/:pushId [GET]
+#### http://host:port/config/push-interfaces/:pushId [GET]
+
 This API performs searching a push interface by pushId.
 
-### http://host:port/config/push-interfaces [POST]
+#### http://host:port/config/push-interfaces [POST]
+
 This API performs adding the given push interface for request:
 ```javascript
 {"pushId": "P1",
@@ -50,13 +54,16 @@ This API performs adding the given push interface for request:
 "desc": "Description"}
 ```
 
-### http://host:port/config/event-handlers [GET]
+#### http://host:port/config/event-handlers 
+
 This API performs searching event handlers.
 
-### http://host:port/config/event-handlers/:handlerId [GET]
+#### http://host:port/config/event-handlers/:handlerId [GET]
+
 This API performs searching an event handler by handlerId.
 
-### http://host:port/config/event-handlers [POST]
+#### http://host:port/config/event-handlers [POST]
+
 This API performs adding the given event handler for request:
 ```javascript
 {"handlerId": "H1",
@@ -67,20 +74,24 @@ This API performs adding the given event handler for request:
 }
 ```
 
-### http://host:port/config/push-interfaces/deploy-all [POST]
+#### http://host:port/config/push-interfaces/deploy-all [POST]
+
 This API performs generating and deploying all push interfaces.
 
-### http://host:port/config/push-interfaces/deploy [POST]
+#### http://host:port/config/push-interfaces/deploy [POST]
+
 This API performs generating and deploying a push interface by pushId for request:
 ```javascript
 {"pushId": "P1"}
 ```
 
-### http://host:port/config/push-interfaces/undeploy [POST]
+#### http://host:port/config/push-interfaces/undeploy [POST]
+
 This API performs un-deploying a push interface by pushId for request:
 ```javascript
 {"pushId": "P1"}
 ```
 
-### http://host:port/config/push-interfaces/undeploy-all [POST]
+#### http://host:port/config/push-interfaces/undeploy-all [POST]
+
 This API performs un-deploying all push interfaces.
