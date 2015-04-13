@@ -8,7 +8,7 @@ Install nodejs and vertx in your desktop or server.
 - For vertx, refer to http://vertx.io/install.html
 
 Install gulp related tasks by using npm.
-- /> npm install
+- /> npm update
 
 Run 'gulp bower', 'gulp' to build a module distribution.
 - /> gulp bower

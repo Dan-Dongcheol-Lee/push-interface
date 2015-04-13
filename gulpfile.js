@@ -15,7 +15,7 @@ gulp.task('bower', function() {
     .on('end', function() {
         gulp.src(['src/lib/**/*', '!src/lib/*.jar'], {dot: true})
             .pipe(vinylPaths(del));
-        gulp.src(['bower_components/**/*.min.js'])
+        return gulp.src(['bower_components/**/*.min.js'])
             .pipe(gulp.dest('src/lib/'));
     });
 });
