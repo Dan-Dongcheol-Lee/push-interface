@@ -8,6 +8,7 @@ var del = require('del');
 var groupId = 'fullbox';
 var moduleId = 'mod-push-interface';
 var version = '1.0.0';
+var distZipFile = groupId + '~' + moduleId + '~' + version + '.zip';
 
 gulp.task('bower', function() {
   return bower('./bower_components')
@@ -31,19 +32,19 @@ gulp.task('compress', function() {
 
 gulp.task('default', ['clean'], function () {
     return gulp.src(['src/**/*'])
-        .pipe(zip(groupId + '~' + moduleId + '~' + version + '.zip'))
+        .pipe(zip(distZipFile))
         .pipe(gulp.dest('dist'));
 });
 
 gulp.task('copy', ['clean'], function () {
     gulp.src(['src/*.json', 'src/*.template'])
         .pipe(gulp.dest('build'));
-    gulp.src(['src/lib/**/*'])
+    return gulp.src(['src/lib/**/*'])
         .pipe(gulp.dest('build/lib'));
 });
 
 gulp.task('pack', ['clean', 'compress', 'copy'], function () {
-    return gulp.src(['build/*', 'build/lib/**/*'])
-        .pipe(zip(groupId + '~' + moduleId + '~' + version + '.zip'))
+    return gulp.src(['build/**/*'])
+        .pipe(zip(distZipFile))
         .pipe(gulp.dest('dist'));
 });
